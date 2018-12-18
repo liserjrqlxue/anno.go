@@ -5,6 +5,7 @@ import (
 	"github.com/brentp/irelate/interfaces"
 	"github.com/liserjrqlxue/simple-util"
 	"log"
+	"strings"
 )
 
 type Tbx struct {
@@ -92,32 +93,70 @@ func (tbx Tbx) Query(chrom string, start, end int) []Variant {
 	return items
 }
 
+func chopVariant(ref, alt string) (refn, altn string, offset int) {
+	refs := strings.Split(ref, "")
+	alts := strings.Split(alt, "")
+	offset = 0
+	for j := range refs {
+		if j < len(alts) && refs[j] == alts[j] {
+			offset++
+		} else {
+			break
+		}
+	}
+	refn = strings.Join(refs[offset:], "")
+	altn = strings.Join(alts[offset:], "")
+	return //refn,altn,offset
+}
+
 func (tbx Tbx) Hit(chrom string, start, end int, ref, alt string, vals []Variant) Variant {
 	var hit Variant
+	ref, alt, offset := chopVariant(ref, alt)
+	start += offset
+	hit.Chrom = chrom
+	hit.Start = uint32(start)
+	hit.End = uint32(end)
+	hit.Ref = ref
+	hit.Alt = append(hit.Alt, alt)
+
+	//fmt.Println(hit)
+
+	if len(vals) == 0 {
+		return hit
+	}
 	for _, val := range vals {
-		if ref != val.Ref {
-			continue
-		}
+		//fmt.Println(val)
+
 		for i, Alt := range val.Alt {
-			if alt != Alt {
+			Ref, Alt, offset := chopVariant(val.Ref, Alt)
+			//fmt.Println(Ref,Alt,offset,val)
+			if ref != Ref || alt != Alt {
 				continue
 			}
+			val.Start += uint32(offset)
+			if val.Start != uint32(start) || val.End != uint32(end) {
+				continue
+			}
+
 			var info = make(map[string]interface{})
 			for _, k := range FieldInt {
 				t, ok := val.Info[k].([]int)
 				if ok {
 					info[k] = t[i]
 				} else {
-					log.Fatal("key:{"+k+"} can not parse to []int:value:{", val.Info[k], "}")
+					log.Fatal("[", chrom, " ", start, " ", end, " ", ref, " ", alt, "]\tkey:{"+k+"} can not parse to []int:value:{", val.Info[k], "}")
 				}
 				//info[k]=t[i]
 			}
 			for _, k := range FieldFloat32 {
+				if val.Info[k] == nil {
+					continue
+				}
 				t, ok := val.Info[k].([]float32)
 				if ok {
 					info[k] = t[i]
 				} else {
-					log.Fatal("key:{"+k+"} can not parse to []fload32:value:{", val.Info[k], "}")
+					log.Fatal("[", chrom, " ", start, " ", end, " ", ref, " ", alt, "]\tkey:{", k, "} can not parse to []fload32:value:{", val.Info[k], "}")
 				}
 				//info[k]=t[i]
 			}

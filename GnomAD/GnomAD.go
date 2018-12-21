@@ -140,6 +140,9 @@ func (tbx Tbx) Hit(chrom string, start, end int, ref, alt string, vals []Variant
 
 			var info = make(map[string]interface{})
 			for _, k := range FieldInt {
+				if val.Info[k] == nil {
+					continue
+				}
 				t, ok := val.Info[k].([]int)
 				if ok {
 					info[k] = t[i]

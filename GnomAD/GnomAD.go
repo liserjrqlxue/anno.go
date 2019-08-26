@@ -149,7 +149,12 @@ func (tbx Tbx) Hit(chrom string, start, end int, ref, alt string, vals []Variant
 				if ok {
 					info[k] = t[i]
 				} else {
-					log.Fatal("[", chrom, " ", start, " ", end, " ", ref, " ", alt, "]\tkey:{"+k+"} can not parse to []int:value:{", val.Info[k], "}")
+					t, ok := val.Info[k].(int)
+					if ok {
+						info[k] = t
+					} else {
+						log.Fatal("[", chrom, " ", start, " ", end, " ", ref, " ", alt, "]\tkey:{"+k+"} can not parse to []int ot int:value:{", val.Info[k], "}")
+					}
 				}
 				//info[k]=t[i]
 			}

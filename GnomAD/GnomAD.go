@@ -5,6 +5,8 @@ import (
 	"github.com/brentp/irelate/interfaces"
 	"github.com/liserjrqlxue/simple-util"
 	"log"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -168,4 +170,51 @@ func (tbx Tbx) Hit(chrom string, start, end int, ref, alt string, vals []Variant
 		}
 	}
 	return hit
+}
+
+var (
+	chrPrefix = regexp.MustCompile("^chr")
+)
+
+func AddGnomAD(tbx *Tbx, item map[string]string) {
+	chr := item["#Chr"]
+	chr = chrPrefix.ReplaceAllString(chr, "")
+	start, err := strconv.Atoi(item["Start"])
+	simple_util.CheckErr(err)
+	stop, err := strconv.Atoi(item["Stop"])
+	qStart := start
+	if start == stop {
+		qStart -= 1
+	}
+	vals := tbx.Query(chr, start-1, stop)
+	if vals == nil {
+		return
+	}
+
+	ref := item["Ref"]
+	if ref == "." {
+		ref = ""
+	}
+	alt := item["Call"]
+	if alt == "." {
+		alt = ""
+	}
+
+	hit := tbx.Hit(chr, start, stop, ref, alt, vals)
+	if hit.Info == nil {
+		return
+	}
+	if hit.Info["AF"] == nil {
+		item["GnomAD AF"] = ""
+	} else {
+		item["GnomAD AF"] = strconv.FormatFloat(float64(hit.Info["AF"].(float32)), 'f', -1, 32)
+	}
+	if hit.Info["AF_eas"] == nil {
+		item["GnomAD EAS AF"] = ""
+	} else {
+		item["GnomAD EAS AF"] = strconv.FormatFloat(float64(hit.Info["AF_eas"].(float32)), 'f', -1, 32)
+	}
+	item["GnomAD HomoAlt Count"] = strconv.Itoa(hit.Info["nhomalt"].(int))
+	item["GnomAD EAS HomoAlt Count"] = strconv.Itoa(hit.Info["nhomalt"].(int))
+	return
 }
